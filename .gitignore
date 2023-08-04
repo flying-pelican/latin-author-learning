@@ -1,2 +1,9 @@
 .ipynb_checkpoints
 *.pickle
+*.tar
+latin_bert/*
+latin_tokenizer/*
+*/__pycache__/*
+.mypy_cache
+.pytest_cash
+.idea
