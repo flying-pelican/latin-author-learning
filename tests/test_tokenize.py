@@ -4,12 +4,14 @@ from pathlib import Path
 
 import lorem
 import pytest
+import torch
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 
 from latin_author_learning.tokenize import (
     ENDS,
     STARTS,
     WORD_SEPARATOR,
+    SentenceAwareEncoder,
     convert_to_tokens,
     get_subtoken_strings,
 )
@@ -21,9 +23,9 @@ def path_test_subword_encoder():
     return file_dir / "test_data" / "test.subword.encoder"
 
 
-def random_text(length=1000):
+def random_text(length=500):
     delimiters = ".!?,;"
-    symbols = string.ascii_letters + string.whitespace + delimiters
+    symbols = string.ascii_letters + string.whitespace + delimiters + string.digits
     text = ""
     for _ in range(length):
         symbol = random.choice(symbols)
@@ -37,14 +39,26 @@ def real_latin_text():
     return "Cogito ergo sum. Errare humanum est. Veni, vidi, vici."
 
 
-@pytest.fixture(scope="session", params=[random_text, real_latin_text, lorem.text])
+def lorem_text(sections=10):
+    text = ""
+    for _ in range(sections):
+        text += lorem.text()
+    return text
+
+
+@pytest.fixture(scope="session", params=[random_text, real_latin_text, lorem_text])
 def sample_text(request):
     return request.param()
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def tokenized_sample_text(sample_text):
     return convert_to_tokens(sample_text)
+
+
+@pytest.fixture(scope="session")
+def vocabulary(path_test_subword_encoder):
+    return get_subtoken_strings(path_test_subword_encoder)
 
 
 def test_get_substring_tokens(path_test_subword_encoder):
@@ -63,8 +77,8 @@ def test_convert_to_tokens__length(sample_text, tokenized_sample_text):
 
 
 def test_convert_to_tokens__sentences(sample_text, tokenized_sample_text):
-    sentence_num = len(tokenized_sample_text.split(ENDS + WORD_SEPARATOR + STARTS))
-    assert sentence_num == len(SentenceTokenizer().tokenize(sample_text))
+    sentences = tokenized_sample_text.split(ENDS + WORD_SEPARATOR + STARTS)
+    assert len(sentences) == len(SentenceTokenizer().tokenize(sample_text))
 
 
 def test_convert_to_tokens__delimiters(tokenized_sample_text):
@@ -74,7 +88,33 @@ def test_convert_to_tokens__delimiters(tokenized_sample_text):
         ).count(symbol)
 
 
-def test_convert_to_tokens__whitespaces(tokenized_sample_text):
-    disallowed_whitespaces = [w for w in string.whitespace if w != " "]
+def test_convert_to_tokens__lower_case(tokenized_sample_text):
+    tokens_wo_control_sequences = tokenized_sample_text.replace(STARTS, "").replace(
+        ENDS, ""
+    )
+    assert tokens_wo_control_sequences == tokens_wo_control_sequences.lower()
+
+
+def test_convert_to_tokens__whitespace(tokenized_sample_text):
+    disallowed_whitespaces = [w for w in string.whitespace if w != WORD_SEPARATOR]
     for symbol in disallowed_whitespaces:
         assert tokenized_sample_text.count(symbol) == 0
+
+
+def test_SentenceAwareEncoder__invertible(tokenized_sample_text, vocabulary):
+    encoder = SentenceAwareEncoder(vocabulary)
+    encoded = encoder.encode(tokenized_sample_text)
+    assert not torch.is_floating_point(encoded)
+    assert encoder.decode(encoded) == tokenized_sample_text
+
+
+def test_SentenceAwareEncoder__control_sequences(vocabulary):
+    encoder = SentenceAwareEncoder(vocabulary)
+    assert len(encoder.encode(STARTS)) == 1
+    assert len(encoder.encode(ENDS)) == 1
+
+
+def test_SentenceAwareEncoder__subword(tokenized_sample_text, vocabulary):
+    encoder = SentenceAwareEncoder(vocabulary)
+    encoded = encoder.encode(tokenized_sample_text)
+    assert len(encoded) > len(tokenized_sample_text.split(WORD_SEPARATOR))
