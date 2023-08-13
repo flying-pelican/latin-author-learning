@@ -8,10 +8,12 @@ import torch
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 
 from latin_author_learning.tokenize import (
-    ENDS,
-    STARTS,
+    CONTROL_SEQUENCES,
+    DELIMITERS,
+    SENTENCE_DELIMITER,
     WORD_SEPARATOR,
     SentenceAwareEncoder,
+    _tokenize_words,
     convert_to_tokens,
     get_subtoken_strings,
 )
@@ -24,7 +26,7 @@ def path_test_subword_encoder():
 
 
 def random_text(length=500):
-    delimiters = ".!?,;"
+    delimiters = "".join(DELIMITERS)
     symbols = string.ascii_letters + string.whitespace + delimiters + string.digits
     text = ""
     for _ in range(length):
@@ -39,7 +41,7 @@ def real_latin_text():
     return "Cogito ergo sum. Errare humanum est. Veni, vidi, vici."
 
 
-def lorem_text(sections=10):
+def lorem_text(sections=2):
     text = ""
     for _ in range(sections):
         text += lorem.text()
@@ -72,31 +74,55 @@ def test_get_substring_tokens(path_test_subword_encoder):
     assert len(subtoken_strings) == number_of_lines
 
 
-def test_convert_to_tokens__length(sample_text, tokenized_sample_text):
-    assert len(tokenized_sample_text) > len(sample_text)
+@pytest.mark.parametrize("delimiter", ["", ".", "?", "!"])
+def test_tokenize_words__delimiters(delimiter):
+    sentence = "Veni, vidi, vici" + delimiter
+    tokenized = _tokenize_words(sentence)
+    assert tokenized.endswith(SENTENCE_DELIMITER)
+
+
+@pytest.mark.parametrize("whitespace", ["   ", "\n", "\t"])
+def test_tokenize_words__whitespace(whitespace):
+    sentence = "Veni, vidi, vici.".replace(" ", whitespace)
+    tokenized_sentence = _tokenize_words(sentence)
+
+    disallowed_whitespaces = string.whitespace.replace(WORD_SEPARATOR, "")
+    for symbol in disallowed_whitespaces:
+        assert tokenized_sentence.count(symbol) == 0
+
+
+@pytest.mark.parametrize("delimiter", DELIMITERS)
+def test_convert_to_tokens__delimiters(delimiter, tokenized_sample_text):
+    assert tokenized_sample_text.count(delimiter + SENTENCE_DELIMITER) == 0
+
+
+@pytest.mark.parametrize("control_sequence", CONTROL_SEQUENCES)
+def test_convert_to_tokens__control_sequences(control_sequence, tokenized_sample_text):
+    padded_control_sequence = WORD_SEPARATOR + control_sequence + WORD_SEPARATOR
+    assert tokenized_sample_text.count(control_sequence) == tokenized_sample_text.count(
+        padded_control_sequence
+    )
 
 
 def test_convert_to_tokens__sentences(sample_text, tokenized_sample_text):
-    sentences = tokenized_sample_text.split(ENDS + WORD_SEPARATOR + STARTS)
-    assert len(sentences) == len(SentenceTokenizer().tokenize(sample_text))
-
-
-def test_convert_to_tokens__delimiters(tokenized_sample_text):
-    for symbol in [",", ";", "?", "!"]:
-        assert tokenized_sample_text.count(symbol) == tokenized_sample_text.split(
-            WORD_SEPARATOR
-        ).count(symbol)
+    sentence_count = 0
+    for delimiter in CONTROL_SEQUENCES:
+        sentence_count += tokenized_sample_text.count(delimiter)
+    sentences = SentenceTokenizer().tokenize(sample_text)
+    assert len(sentences) == sentence_count
 
 
 def test_convert_to_tokens__lower_case(tokenized_sample_text):
-    tokens_wo_control_sequences = tokenized_sample_text.replace(STARTS, "").replace(
-        ENDS, ""
-    )
-    assert tokens_wo_control_sequences == tokens_wo_control_sequences.lower()
+    text_wo_control_sequences = tokenized_sample_text
+    for delimiter in CONTROL_SEQUENCES:
+        text_wo_control_sequences = text_wo_control_sequences.replace(
+            delimiter, WORD_SEPARATOR
+        )
+    assert text_wo_control_sequences == text_wo_control_sequences.lower()
 
 
 def test_convert_to_tokens__whitespace(tokenized_sample_text):
-    disallowed_whitespaces = [w for w in string.whitespace if w != WORD_SEPARATOR]
+    disallowed_whitespaces = string.whitespace.replace(WORD_SEPARATOR, "")
     for symbol in disallowed_whitespaces:
         assert tokenized_sample_text.count(symbol) == 0
 
@@ -108,13 +134,25 @@ def test_SentenceAwareEncoder__invertible(tokenized_sample_text, vocabulary):
     assert encoder.decode(encoded) == tokenized_sample_text
 
 
-def test_SentenceAwareEncoder__control_sequences(vocabulary):
-    encoder = SentenceAwareEncoder(vocabulary)
-    assert len(encoder.encode(STARTS)) == 1
-    assert len(encoder.encode(ENDS)) == 1
-
-
 def test_SentenceAwareEncoder__subword(tokenized_sample_text, vocabulary):
     encoder = SentenceAwareEncoder(vocabulary)
     encoded = encoder.encode(tokenized_sample_text)
-    assert len(encoded) > len(tokenized_sample_text.split(WORD_SEPARATOR))
+
+    num_words = len(tokenized_sample_text.split(WORD_SEPARATOR))
+    assert len(encoded) > num_words
+
+
+@pytest.mark.parametrize("control_sequence", CONTROL_SEQUENCES)
+def test_SentenceAwareEncoder__additional_vocabulary(control_sequence, vocabulary):
+    encoder = SentenceAwareEncoder(vocabulary)
+    encoded_delimiter = encoder.encode(control_sequence)
+    assert len(encoded_delimiter) == 1
+
+
+@pytest.mark.parametrize("control_sequence", CONTROL_SEQUENCES)
+def test_SentenceAwareEncoder__control_sequences(control_sequence, vocabulary):
+    encoder = SentenceAwareEncoder(vocabulary)
+
+    sample_text = f"veni {control_sequence} vidi"
+    encoded = encoder.encode(sample_text)
+    assert len(encoded) == len(sample_text.split(" "))

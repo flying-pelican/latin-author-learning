@@ -5,9 +5,14 @@ from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceToken
 from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
 from torchnlp.encoders.text import SubwordEncoder
 
-STARTS = "STA"
-ENDS = "END"
+EXCLAMATION = "EXCL"
+FULL_STOP = "FS"
+QUESTION = "QUEST"
+SENTENCE_DELIMITER = "SENT"
 WORD_SEPARATOR = " "
+
+DELIMITERS = [".", ",", ";", "?", "!"]
+CONTROL_SEQUENCES = [FULL_STOP, EXCLAMATION, QUESTION, SENTENCE_DELIMITER]
 
 
 def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
@@ -40,6 +45,14 @@ def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
     return subtoken_strings
 
 
+def _tokenize_words(sentence: str) -> str:
+    word_tokenizer = WordTokenizer()
+    words = word_tokenizer.tokenize(sentence)
+    sentence = WORD_SEPARATOR.join(words)
+    sentence += SENTENCE_DELIMITER
+    return sentence
+
+
 def convert_to_tokens(text: str) -> str:
     """
     Tokenizes a raw text, using the word and sentence tokenizers of
@@ -61,22 +74,23 @@ def convert_to_tokens(text: str) -> str:
        Tokenized text.
     """
     sentence_tokenizer = SentenceTokenizer()
-    word_tokenizer = WordTokenizer()
-
     sentences = sentence_tokenizer.tokenize(text)
     sentences = map(lambda sentence: sentence.lower(), sentences)
-    tokenized_sentences = map(
-        lambda sentence: word_tokenizer.tokenize(sentence), sentences
-    )
-    tokenized_sentences = map(
-        lambda sentence: [STARTS] + sentence + [ENDS], tokenized_sentences
-    )
+    sentences = map(_tokenize_words, sentences)
+    tokenized_text = "".join(sentences)
+    for delim in DELIMITERS:
+        tokenized_text = tokenized_text.replace(WORD_SEPARATOR + delim, delim).replace(
+            delim + WORD_SEPARATOR, delim
+        )
+    tokenized_text = tokenized_text.replace("." + SENTENCE_DELIMITER, FULL_STOP)
+    tokenized_text = tokenized_text.replace("!" + SENTENCE_DELIMITER, EXCLAMATION)
+    tokenized_text = tokenized_text.replace("?" + SENTENCE_DELIMITER, QUESTION)
+    for cs in CONTROL_SEQUENCES:
+        tokenized_text = tokenized_text.replace(
+            cs, WORD_SEPARATOR + cs + WORD_SEPARATOR
+        )
 
-    sentences_w_control_seqs = map(
-        lambda sentence: WORD_SEPARATOR.join(sentence), tokenized_sentences
-    )
-    text_w_control_seqs = WORD_SEPARATOR.join(sentences_w_control_seqs)
-    return text_w_control_seqs
+    return tokenized_text
 
 
 class SentenceAwareEncoder(SubwordEncoder):
@@ -86,8 +100,7 @@ class SentenceAwareEncoder(SubwordEncoder):
     `latin_author_learning.tokenize.convert_to_tokens` as a single token.
     """
 
-    control_sequences = [STARTS, ENDS]
-
     def __init__(self, vocabulary: List[str], *args, **kwargs):
-        formatted_cs = [word + "_" for word in self.control_sequences]
-        super().__init__(formatted_cs + vocabulary, *args, **kwargs)
+        added_vocab = CONTROL_SEQUENCES + DELIMITERS
+        formatted_delims = [w + "_" for w in added_vocab]
+        super().__init__(formatted_delims + vocabulary, *args, **kwargs)
