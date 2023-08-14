@@ -20,9 +20,9 @@ def caesar_quotes():
 @pytest.fixture()
 def sample_file_content(caesar_quotes):
     return {
-        "author": "Gaius Julius Ceasar",
-        "name": "famous_quotes",
-        "year": "~50 BC",
+        "@author": "Gaius Julius Ceasar",
+        "@name": "famous_quotes",
+        "@year": "~50 BC",
         "sections": {"pars prima": caesar_quotes[0], "pars secunda": caesar_quotes[1]},
     }
 
@@ -37,7 +37,12 @@ def sample_json_file(tmpdir, sample_file_content):
 
 
 def test_extract_text(sample_file_content, caesar_quotes):
-    text = extract_text(sample_file_content, meta_data_keys=["author", "name", "year"])
+    text = extract_text(sample_file_content, meta_keys=["@author", "@name", "@year"])
+    assert text == SECTION_SEPARATOR.join(caesar_quotes)
+
+
+def test_extract_text__meta_key_prefix(sample_file_content, caesar_quotes):
+    text = extract_text(sample_file_content, meta_key_prefix="@")
     assert text == SECTION_SEPARATOR.join(caesar_quotes)
 
 
@@ -49,14 +54,14 @@ def test_extract_text__multiple_nesting_levels(sample_file_content, caesar_quote
         "sections": deepcopy(sample_file_content["sections"]),
         "commentary": commentary,
     }
-    text = extract_text(modified_data, meta_data_keys=[])
+    text = extract_text(modified_data)
     assert text == SECTION_SEPARATOR.join([premable] + caesar_quotes + [commentary])
 
 
 def test_extract_text__list(sample_file_content, caesar_quotes):
     data = deepcopy(sample_file_content)
     data["sections"] = caesar_quotes
-    text = extract_text(data, meta_data_keys=["author", "name", "year"])
+    text = extract_text(data, meta_keys=["@author", "@name", "@year"])
     assert text == SECTION_SEPARATOR.join(caesar_quotes)
 
 
@@ -69,12 +74,12 @@ def test_extract_text__wrong_type(sample_file_content):
                 All values are assumed to be strings.
                 """
     with pytest.raises(TypeError, match=expected_error_message):
-        _ = extract_text(modified_data, meta_data_keys=["author", "name", "year"])
+        _ = extract_text(modified_data, meta_key_prefix="@")
 
 
 def test_read_text(sample_json_file, caesar_quotes):
     assert sample_json_file.exists()
-    text = read_text(sample_json_file, meta_data_keys=["author", "name", "year"])
+    text = read_text(sample_json_file, meta_key_prefix="@")
     assert text == SECTION_SEPARATOR.join(caesar_quotes)
 
 
@@ -85,7 +90,7 @@ def test_read_text_wrong_file_format():
             Currently only JSON files are supported.
             """
     with pytest.raises(NotImplementedError, match=expected_error_message):
-        _ = read_text(file_path, meta_data_keys=[])
+        _ = read_text(file_path)
 
 
 def test_PieceOfWork():

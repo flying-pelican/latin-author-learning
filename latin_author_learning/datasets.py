@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 SECTION_SEPARATOR = "\n"
@@ -15,7 +15,8 @@ def _add_text_with_separator(text: str, added_text: str) -> str:
 
 def extract_text(
     data: Union[str, List[Union[str, List, Dict]], Dict[Any, Union[str, List, Dict]]],
-    meta_data_keys: List[str],
+    meta_keys: Optional[List[str]] = None,
+    meta_key_prefix: Optional[str] = None,
 ) -> str:
     """
     Extracts text from a nested data structure. Text is concatenated for all keys,
@@ -27,9 +28,13 @@ def extract_text(
         Nested data structure. All values in the dicts within this data structure either
         have to be strings, lists, or dicts.
 
-    meta_data_keys : List[str]
-        Keys to excluded from the text extraction. These keys are excluded irrespective
-        of the nesting level.
+    meta_keys : Optional[List[str]]
+        Keys to be excluded from the text extraction. These keys are excluded
+        irrespective of the nesting level.
+
+    meta_key_prefix : Optional[str]
+        Prefix for meta keys. All keys starting with that prefix will be automatically
+        considered as meta keys.
 
     Returns
     -------
@@ -41,19 +46,24 @@ def extract_text(
     TypeError
         If a key within data is neither a string, nor a list, nor a dict.
     """
+    if meta_keys is None:
+        meta_keys = []
     if isinstance(data, str):
         return data
     elif isinstance(data, dict):
         text = ""
         for k in data:
-            if k not in meta_data_keys:
-                additional_text = extract_text(data[k], meta_data_keys)
+            key_has_meta_prefix = meta_key_prefix is not None and k.startswith(
+                meta_key_prefix
+            )
+            if k not in meta_keys and not key_has_meta_prefix:
+                additional_text = extract_text(data[k], meta_keys, meta_key_prefix)
                 text = _add_text_with_separator(text, additional_text)
         return text
     elif isinstance(data, list):
         text = ""
         for element in data:
-            additional_text = extract_text(element, meta_data_keys)
+            additional_text = extract_text(element, meta_keys, meta_key_prefix)
             text = _add_text_with_separator(text, additional_text)
         return text
     else:
@@ -66,7 +76,11 @@ def extract_text(
         )
 
 
-def read_text(file_path: Path, meta_data_keys: List[str]) -> str:
+def read_text(
+    file_path: Path,
+    meta_keys: Optional[List[str]] = None,
+    meta_key_prefix: Optional[str] = None,
+) -> str:
     """
     Reads text from a nested file using `latin_author_learning.datasets.extract_text`.
     Currently only JSON format is supported.
@@ -76,9 +90,13 @@ def read_text(file_path: Path, meta_data_keys: List[str]) -> str:
     file_path : pathlib.Path
         Nested data file from which the text is extracted.
 
-    meta_data_keys : List[str]
-        Keys to excluded from the text extraction. These keys are excluded irrespective
-        of the nesting level.
+    meta_keys : Optional[List[str]]
+        Keys to be excluded from the text extraction. These keys are excluded
+        irrespective of the nesting level.
+
+    meta_key_prefix : Optional[str]
+        Prefix for meta keys. All keys starting with that prefix will be automatically
+        considered as meta keys.
 
     Returns
     -------
@@ -99,7 +117,7 @@ def read_text(file_path: Path, meta_data_keys: List[str]) -> str:
         )
     with file_path.open("r") as fh:
         data = json.load(fh)
-    return extract_text(data, meta_data_keys)
+    return extract_text(data, meta_keys, meta_key_prefix)
 
 
 class PieceOfWork(object):
