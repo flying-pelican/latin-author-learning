@@ -36,7 +36,7 @@ ignore = [
 [tool.interrogate]
 ignore-init-method = true
 ignore-init-module = false
-ignore-magic = false
+ignore-magic = true
 ignore-semiprivate = true
 ignore-private = true
 ignore-property-decorators = false

@@ -1,7 +1,7 @@
 import json
 from hashlib import md5
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 SECTION_SEPARATOR = "\n"
 
@@ -145,3 +145,59 @@ class PieceOfWork(object):
         self.text = text
         self.title = title
         self.hash = md5(text.encode(), usedforsecurity=False)
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            raise TypeError(
+                f"Cannot compare instances of types {self.__class__} and {type(other)}."
+            )
+        return self.hash.hexdigest() == other.hash.hexdigest()
+
+
+class Corpus(object):
+    """
+    Class for a corpus with several piece of work.
+
+    Parameters
+    ----------
+    name : str
+        Name of the corpus.
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+        self._works: List[PieceOfWork] = []
+
+    @property
+    def works(self) -> Set[str]:
+        """
+        Get works contained in the corpus.
+
+        Returns
+        -------
+        Set[str]
+            Set of the titles of all works contained in the corpus.
+        """
+        return set([w.title for w in self._works])
+
+    def _get_pre_existing_work(self, new_work: PieceOfWork) -> Optional[PieceOfWork]:
+        for pre_existing_work in self._works:
+            if pre_existing_work == new_work:
+                return pre_existing_work
+        return None
+
+    def add_piece_of_work(self, new_work: PieceOfWork):
+        """
+        Append a piece of work to the corpus.
+
+        Checks that no duplicates are added using MD5 hashes as checksums.
+
+        Parameters
+        ----------
+        new_work : PieceOfWork
+            New piece of work to be added.
+        """
+        pre_existing_work = self._get_pre_existing_work(new_work)
+        if pre_existing_work is not None:
+            raise ValueError(f"Added text idential to text {pre_existing_work.title}")
+        self._works.append(new_work)

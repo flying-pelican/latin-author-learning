@@ -6,6 +6,7 @@ import pytest
 
 from latin_author_learning.datasets import (
     SECTION_SEPARATOR,
+    Corpus,
     PieceOfWork,
     extract_text,
     read_text,
@@ -104,3 +105,102 @@ def test_PieceOfWork():
     assert caesar_quote.text == text
     assert caesar_quote.title == title
     assert caesar_quote.hash.name == "md5"
+
+
+def test_PieceOfWork__self_equality():
+    famous_quote = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+    assert famous_quote == famous_quote
+
+
+def test_PieceOfWork__equality_with_meta_data_change():
+    famous_quote = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+    arrogant_quote = PieceOfWork(
+        author="Caesar",
+        title="arrogant quote",
+        text=famous_quote.text,
+    )
+    assert famous_quote == arrogant_quote
+
+
+def test_PieceOfWork__not_equal():
+    famous_quote = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+    changed_quote = PieceOfWork(
+        author=famous_quote.author,
+        title=famous_quote.title,
+        text=famous_quote.text.replace(".", "!"),
+    )
+    assert famous_quote != changed_quote
+
+
+def test_PieceOfWork__no_comparison_to_other_types():
+    famous_quote = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+    expected_error_message = "Cannot compare instances of types "
+    expected_error_message += f"{type(famous_quote)} and {type(famous_quote.text)}."
+    with pytest.raises(TypeError, match=expected_error_message):
+        famous_quote == famous_quote.text
+    with pytest.raises(TypeError, match=expected_error_message):
+        famous_quote.text == famous_quote
+
+
+def test_Corpus():
+    name = "test corpus"
+    corpus = Corpus(name)
+    assert corpus.name == name
+    assert len(corpus.works) == 0
+
+    famous_quote = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+
+    corpus.add_piece_of_work(famous_quote)
+    assert corpus.works == set([famous_quote.title])
+
+    de_bello_gallico = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="de bello gallico",
+        text="Gallia omnis ...",
+    )
+    corpus.add_piece_of_work(de_bello_gallico)
+    assert corpus.works == set([famous_quote.title, de_bello_gallico.title])
+
+
+def test_Corpus__no_duplicates():
+    name = "test corpus"
+    corpus = Corpus(name)
+    assert corpus.name == name
+    assert len(corpus.works) == 0
+
+    famous_quote = PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+
+    corpus.add_piece_of_work(famous_quote)
+    assert corpus.works == set([famous_quote.title])
+
+    arrogant_quote = PieceOfWork(
+        author=famous_quote.author, title="arrogant quote", text=famous_quote.text
+    )
+    with pytest.raises(
+        ValueError, match=f"Added text idential to text {famous_quote.title}"
+    ):
+        corpus.add_piece_of_work(arrogant_quote)
