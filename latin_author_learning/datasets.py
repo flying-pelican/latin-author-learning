@@ -6,8 +6,16 @@ from uuid import uuid4
 SECTION_SEPARATOR = "\n"
 
 
+def _add_text_with_separator(text: str, added_text: str) -> str:
+    if text and added_text:
+        text += SECTION_SEPARATOR
+    text += added_text
+    return text
+
+
 def extract_text(
-    data: Union[str, Dict[Any, Union[str, Dict]]], meta_data_keys: List[str]
+    data: Union[str, List[Union[str, List, Dict]], Dict[Any, Union[str, List, Dict]]],
+    meta_data_keys: List[str],
 ) -> str:
     """
     Extracts text from a nested data structure. Text is concatenated for all keys,
@@ -15,9 +23,9 @@ def extract_text(
 
     Parameters
     ----------
-    data : Union[str, Dict[Any, Union[str, Dict]]]
+    data : Union[str, List[Union[str, List, Dict]], Dict[Any, Union[str, List, Dict]]]
         Nested data structure. All values in the dicts within this data structure either
-        have to be strings or dicts.
+        have to be strings, lists, or dicts.
 
     meta_data_keys : List[str]
         Keys to excluded from the text extraction. These keys are excluded irrespective
@@ -31,7 +39,7 @@ def extract_text(
     Raises
     ------
     TypeError
-        If a key within data is neither a string nor a dict.
+        If a key within data is neither a string, nor a list, nor a dict.
     """
     if isinstance(data, str):
         return data
@@ -40,14 +48,19 @@ def extract_text(
         for k in data:
             if k not in meta_data_keys:
                 additional_text = extract_text(data[k], meta_data_keys)
-                if text and additional_text:
-                    text += SECTION_SEPARATOR
-                text += additional_text
+                text = _add_text_with_separator(text, additional_text)
+        return text
+    elif isinstance(data, list):
+        text = ""
+        for element in data:
+            additional_text = extract_text(element, meta_data_keys)
+            text = _add_text_with_separator(text, additional_text)
         return text
     else:
+        actual_type = type(data)
         raise TypeError(
-            """
-                Got unexpected type from parsed json.
+            f"""
+                Got unexpected type {actual_type} from parsed json.
                 All values are assumed to be strings.
                 """
         )

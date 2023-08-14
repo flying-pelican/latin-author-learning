@@ -17,7 +17,7 @@ def caesar_quotes():
     return ["Veni, vidi, vici.", "Gallia omnis divisa est in partes tres."]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def sample_file_content(caesar_quotes):
     return {
         "author": "Gaius Julius Ceasar",
@@ -53,11 +53,21 @@ def test_extract_text__multiple_nesting_levels(sample_file_content, caesar_quote
     assert text == SECTION_SEPARATOR.join([premable] + caesar_quotes + [commentary])
 
 
+def test_extract_text__list(sample_file_content, caesar_quotes):
+    data = deepcopy(sample_file_content)
+    data["sections"] = caesar_quotes
+    text = extract_text(data, meta_data_keys=["author", "name", "year"])
+    assert text == SECTION_SEPARATOR.join(caesar_quotes)
+
+
 def test_extract_text__wrong_type(sample_file_content):
     modified_data = deepcopy(sample_file_content)
     modified_data["sections"]["pars teria"] = 3
 
-    expected_error_message = "All values are assumed to be strings."
+    expected_error_message = f"""
+                Got unexpected type {type(3)} from parsed json.
+                All values are assumed to be strings.
+                """
     with pytest.raises(TypeError, match=expected_error_message):
         _ = extract_text(modified_data, meta_data_keys=["author", "name", "year"])
 
