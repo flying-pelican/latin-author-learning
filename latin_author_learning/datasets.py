@@ -146,6 +146,37 @@ class PieceOfWork(object):
         self.title = title
         self.hash = md5(text.encode(), usedforsecurity=False)
 
+    def to_dict(self) -> Dict[str, str]:
+        """
+        Convert to a dict that can be serialized as json.
+
+        Returns
+        -------
+        Dict[str, str]
+            Payload and meta data as a dict with the following keys.
+            `author`, `title`, and `text`.
+        """
+        return {
+            "author": self.author,
+            "title": self.title,
+            "text": self.text,
+        }
+
+    def to_file(self, path: Path):
+        """
+        Dump payload and meta data as a json.
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            Directory where data should be dumped.
+        """
+        file_content = self.to_dict()
+        file_name = convert_to_path_name(self.title) + ".json"
+        file_path = path / file_name
+        with file_path.open("w") as fh:
+            json.dump(file_content, fh)
+
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             raise TypeError(
@@ -180,6 +211,18 @@ class Corpus(object):
         """
         return set([w.title for w in self._works])
 
+    @property
+    def authors(self) -> Set[str]:
+        """
+        Get all authors of the works contained in the corpus.
+
+        Returns
+        -------
+        Set[str]
+            Set of the author names.
+        """
+        return set([w.author for w in self._works])
+
     def _get_pre_existing_work(self, new_work: PieceOfWork) -> Optional[PieceOfWork]:
         for pre_existing_work in self._works:
             if pre_existing_work == new_work:
@@ -199,5 +242,73 @@ class Corpus(object):
         """
         pre_existing_work = self._get_pre_existing_work(new_work)
         if pre_existing_work is not None:
-            raise ValueError(f"Added text idential to text {pre_existing_work.title}")
+            raise ValueError(
+                f"Added text identical to pre-existing text {pre_existing_work.title}"
+            )
         self._works.append(new_work)
+
+    def get_works_from_author(self, author: str) -> List[PieceOfWork]:
+        """
+        Get works from a particular author.
+
+        Parameters
+        ----------
+        author : str
+            Author name to be matched with the works in the corpus.
+
+        Returns
+        -------
+        List[PieceOfWork]
+            Works written by the specified author.
+        """
+        return [w for w in self._works if w.author == author]
+
+    def to_files(self, path: Path):
+        """
+        Write corpus to the file system.
+
+        The file structure in which the content of the corpus
+        is saved looks like this.
+        ```
+        corpus root path
+        |
+        |-> author paths
+            |-> author sub path with dir name `opensource`
+                |-> file path corresponding to work title with `.json` suffix.
+        ```
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            Path in which the corpus should be stored.
+            A root dir for the corpus files will be created within this directory.
+        """
+        root_path = path / convert_to_path_name(self.name)
+        root_path.mkdir()
+
+        for author in self.authors:
+            author_path = root_path / convert_to_path_name(author)
+            author_path.mkdir()
+            author_sub_path = author_path / "opensource"
+            author_sub_path.mkdir()
+
+            works = self.get_works_from_author(author)
+            for work in works:
+                work.to_file(author_sub_path)
+
+
+def convert_to_path_name(name: str) -> str:
+    """
+    Convert arbitrary string to a suitable file name.
+
+    Parameters
+    ----------
+    name : str
+        Name to be converted.
+
+    Returns
+    -------
+    str
+        Converted name.
+    """
+    return "_".join(name.split())

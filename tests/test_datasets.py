@@ -1,4 +1,5 @@
 import json
+import string
 from copy import deepcopy
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from latin_author_learning.datasets import (
     SECTION_SEPARATOR,
     Corpus,
     PieceOfWork,
+    convert_to_path_name,
     extract_text,
     read_text,
 )
@@ -22,7 +24,7 @@ def caesar_quotes():
 def sample_file_content(caesar_quotes):
     return {
         "@author": "Gaius Julius Ceasar",
-        "@name": "famous_quotes",
+        "@name": "caesar_quotes",
         "@year": "~50 BC",
         "sections": {"pars prima": caesar_quotes[0], "pars secunda": caesar_quotes[1]},
     }
@@ -35,6 +37,40 @@ def sample_json_file(tmpdir, sample_file_content):
     with file_path.open("w") as fh:
         json.dump(sample_file_content, fh, indent=4)
     return Path(file_path)
+
+
+@pytest.fixture(scope="session")
+def caesar_quote():
+    return PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="famous quote",
+        text="Veni, vidi, vici.",
+    )
+
+
+@pytest.fixture(scope="session")
+def cato_quote():
+    return PieceOfWork(
+        author="Cato senior", title="famous quote", text="Ceterum censeo ..."
+    )
+
+
+@pytest.fixture(scope="session")
+def de_bello_gallico():
+    return PieceOfWork(
+        author="Gaius Julius Caesar",
+        title="de bello gallico",
+        text="Gallia omnis ...",
+    )
+
+
+@pytest.fixture(scope="session")
+def sample_corpus(caesar_quote, de_bello_gallico, cato_quote):
+    corpus = Corpus(name="sample corpus")
+    corpus.add_piece_of_work(caesar_quote)
+    corpus.add_piece_of_work(de_bello_gallico)
+    corpus.add_piece_of_work(cato_quote)
+    return corpus
 
 
 def test_extract_text(sample_file_content, caesar_quotes):
@@ -107,100 +143,122 @@ def test_PieceOfWork():
     assert caesar_quote.hash.name == "md5"
 
 
-def test_PieceOfWork__self_equality():
-    famous_quote = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="famous quote",
-        text="Veni, vidi, vici.",
-    )
-    assert famous_quote == famous_quote
+def test_PieceOfWork__to_dict(caesar_quote):
+    actual_dict = caesar_quote.to_dict()
+    expected_dict = {
+        "author": caesar_quote.author,
+        "title": caesar_quote.title,
+        "text": caesar_quote.text,
+    }
+    assert actual_dict == expected_dict
+    assert json.loads(json.dumps(actual_dict)) == actual_dict
 
 
-def test_PieceOfWork__equality_with_meta_data_change():
-    famous_quote = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="famous quote",
-        text="Veni, vidi, vici.",
-    )
+def test_PieceOfWork__to_file(caesar_quote, tmpdir):
+    caesar_quote.to_file(tmpdir)
+
+    expected_path = tmpdir / convert_to_path_name(caesar_quote.title) + ".json"
+    assert expected_path.exists()
+
+    with expected_path.open("r") as fh:
+        file_content = json.load(fh)
+
+    assert file_content == caesar_quote.to_dict()
+
+
+def test_PieceOfWork__self_equality(caesar_quote):
+    assert caesar_quote == caesar_quote
+
+
+def test_PieceOfWork__equality_with_meta_data_change(caesar_quote):
     arrogant_quote = PieceOfWork(
         author="Caesar",
         title="arrogant quote",
-        text=famous_quote.text,
+        text=caesar_quote.text,
     )
-    assert famous_quote == arrogant_quote
+    assert caesar_quote.author != arrogant_quote.author
+    assert caesar_quote.title != arrogant_quote.title
+    assert caesar_quote == arrogant_quote
 
 
-def test_PieceOfWork__not_equal():
-    famous_quote = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="famous quote",
-        text="Veni, vidi, vici.",
-    )
+def test_PieceOfWork__not_equal(caesar_quote):
     changed_quote = PieceOfWork(
-        author=famous_quote.author,
-        title=famous_quote.title,
-        text=famous_quote.text.replace(".", "!"),
+        author=caesar_quote.author,
+        title=caesar_quote.title,
+        text=caesar_quote.text.replace(".", "!"),
     )
-    assert famous_quote != changed_quote
+    assert caesar_quote != changed_quote
 
 
-def test_PieceOfWork__no_comparison_to_other_types():
-    famous_quote = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="famous quote",
-        text="Veni, vidi, vici.",
-    )
+def test_PieceOfWork__no_comparison_to_other_types(caesar_quote):
     expected_error_message = "Cannot compare instances of types "
-    expected_error_message += f"{type(famous_quote)} and {type(famous_quote.text)}."
+    expected_error_message += f"{type(caesar_quote)} and {type(caesar_quote.text)}."
     with pytest.raises(TypeError, match=expected_error_message):
-        famous_quote == famous_quote.text
+        caesar_quote == caesar_quote.text
     with pytest.raises(TypeError, match=expected_error_message):
-        famous_quote.text == famous_quote
+        caesar_quote.text == caesar_quote
 
 
-def test_Corpus():
+def test_Corpus(caesar_quote, cato_quote, de_bello_gallico):
     name = "test corpus"
     corpus = Corpus(name)
     assert corpus.name == name
     assert len(corpus.works) == 0
 
-    famous_quote = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="famous quote",
-        text="Veni, vidi, vici.",
-    )
+    corpus.add_piece_of_work(caesar_quote)
+    assert corpus.works == set([caesar_quote.title])
+    assert corpus.authors == set([caesar_quote.author])
 
-    corpus.add_piece_of_work(famous_quote)
-    assert corpus.works == set([famous_quote.title])
+    corpus.add_piece_of_work(cato_quote)
+    assert corpus.works == set([caesar_quote.title, cato_quote.title])
+    assert corpus.authors == set([caesar_quote.author, cato_quote.author])
 
-    de_bello_gallico = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="de bello gallico",
-        text="Gallia omnis ...",
-    )
     corpus.add_piece_of_work(de_bello_gallico)
-    assert corpus.works == set([famous_quote.title, de_bello_gallico.title])
+    assert corpus.works == set(
+        [caesar_quote.title, cato_quote.title, de_bello_gallico.title]
+    )
+    assert caesar_quote.author == de_bello_gallico.author
+    assert corpus.authors == set([caesar_quote.author, cato_quote.author])
 
 
-def test_Corpus__no_duplicates():
+def test_Corpus__no_duplicates(caesar_quote):
     name = "test corpus"
     corpus = Corpus(name)
     assert corpus.name == name
     assert len(corpus.works) == 0
 
-    famous_quote = PieceOfWork(
-        author="Gaius Julius Caesar",
-        title="famous quote",
-        text="Veni, vidi, vici.",
-    )
-
-    corpus.add_piece_of_work(famous_quote)
-    assert corpus.works == set([famous_quote.title])
+    corpus.add_piece_of_work(caesar_quote)
+    assert corpus.works == set([caesar_quote.title])
 
     arrogant_quote = PieceOfWork(
-        author=famous_quote.author, title="arrogant quote", text=famous_quote.text
+        author=caesar_quote.author, title="arrogant quote", text=caesar_quote.text
     )
-    with pytest.raises(
-        ValueError, match=f"Added text idential to text {famous_quote.title}"
-    ):
+    expected_message = f"Added text identical to pre-existing text {caesar_quote.title}"
+    with pytest.raises(ValueError, match=expected_message):
         corpus.add_piece_of_work(arrogant_quote)
+
+
+def test_Corpus__to_files(sample_corpus, tmpdir):
+    sample_corpus.to_files(tmpdir)
+
+    root_path = Path(tmpdir) / convert_to_path_name(sample_corpus.name)
+    assert root_path.exists()
+
+    for author in sample_corpus.authors:
+        works = sample_corpus.get_works_from_author(author)
+        for work in works:
+            work_path = root_path / convert_to_path_name(author)
+            work_path /= "opensource"
+            work_path /= convert_to_path_name(work.title) + ".json"
+            assert work_path.exists()
+            with work_path.open("r") as fh:
+                content = json.load(fh)
+            assert content == work.to_dict()
+
+
+def test_convert_to_path_name():
+    name = "Gaius Julius Ceasar"
+    converted = convert_to_path_name(name)
+    for char in string.whitespace:
+        assert char not in converted
+    assert name.split() == converted.split("_")
