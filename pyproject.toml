@@ -24,3 +24,11 @@ lorem = "^0.1.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.numpydoc_validation]
+ignore = [
+    "EX01",
+    "SA01",
+    "ES01",
+    "GL08",
+]

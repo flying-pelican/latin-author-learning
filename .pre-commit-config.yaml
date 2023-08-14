@@ -4,6 +4,15 @@ repos:
   hooks:
   - id: poetry-check
   - id: poetry-lock
+- repo: https://github.com/econchick/interrogate
+  rev: 1.5.0
+  hooks:
+  - id: interrogate
+    args: [--fail-under=99, -ignore-private, --ignore-semiprivate, --ignore-module, --exclude, tests, example_notebooks]
+- repo: https://github.com/numpy/numpydoc
+  rev: 'v1.6.0rc1'
+  hooks:
+  - id: numpydoc-validation
 - repo: https://github.com/pycqa/isort
   rev: 5.11.5
   hooks:

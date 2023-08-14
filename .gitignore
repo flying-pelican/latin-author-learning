@@ -7,3 +7,4 @@ latin_tokenizer/*
 .mypy_cache
 .pytest_cash
 .idea
+nore-private

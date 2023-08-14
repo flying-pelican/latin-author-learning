@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
@@ -17,11 +17,10 @@ CONTROL_SEQUENCES = [FULL_STOP, EXCLAMATION, QUESTION, SENTENCE_DELIMITER]
 
 def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
     """
-    Loads tokens for a subword encoder from a file.
+    Load tokens for a subword encoder from a file.
 
     Parameters
     ----------
-
     tokenizer_path : pathlib.Path
         Path for the vocabulary file containing the tokens. The tokens must be
         separated by newlines and are expected to be quoted.
@@ -55,10 +54,9 @@ def _tokenize_words(sentence: str) -> str:
 
 def convert_to_tokens(text: str) -> str:
     """
-    Tokenizes a raw text, using the word and sentence tokenizers of
-    `cltk.tokenizers.lat.lat`.
+    Tokenize a raw text, using the tokenizers from `cltk.tokenizers.lat.lat`.
 
-    The tokens return are the words as lowercase strings. Sentence boundaries are
+    The tokens returned are the words as lowercase strings. Sentence boundaries are
     indicated by control sequences in upper case. A simple blank is used as a word
     delimiter.
 
@@ -95,12 +93,24 @@ def convert_to_tokens(text: str) -> str:
 
 class SentenceAwareEncoder(SubwordEncoder):
     """
+    Sentence aware sub-word encoder for Latin.
+
     Derived class of `torchnlp.encoders.text.SubwordEncoder` that ensures a
     representation of the control sequences used in
     `latin_author_learning.tokenize.convert_to_tokens` as a single token.
+
+    Parameters
+    ----------
+    vocabulary : List[str]
+        List of words. All word must have a trailing underscore, but no further
+        underscores.
+    *args : List
+        Further arguments for base class.
+    **kwargs : Dict
+        Further keywords arguments for base class.
     """
 
-    def __init__(self, vocabulary: List[str], *args, **kwargs):
+    def __init__(self, vocabulary: List[str], *args: List, **kwargs: Dict):
         added_vocab = CONTROL_SEQUENCES + DELIMITERS
         formatted_delims = [w + "_" for w in added_vocab]
         super().__init__(formatted_delims + vocabulary, *args, **kwargs)
