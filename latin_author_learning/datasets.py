@@ -73,7 +73,7 @@ def extract_text(
         raise TypeError(
             f"""
                 Got unexpected type {actual_type} from parsed json.
-                All values are assumed to be strings.
+                All values are assumed to be strings, or lists, or dicts.
                 """
         )
 

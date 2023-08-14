@@ -71,7 +71,7 @@ def test_extract_text__wrong_type(sample_file_content):
 
     expected_error_message = f"""
                 Got unexpected type {type(3)} from parsed json.
-                All values are assumed to be strings.
+                All values are assumed to be strings, or lists, or dicts.
                 """
     with pytest.raises(TypeError, match=expected_error_message):
         _ = extract_text(modified_data, meta_key_prefix="@")
