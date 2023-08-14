@@ -8,7 +8,8 @@ repos:
   rev: 1.5.0
   hooks:
   - id: interrogate
-    args: [--fail-under=99, -ignore-private, --ignore-semiprivate, --ignore-module, --exclude, tests, example_notebooks]
+    args: [-vv, --config=pyproject.toml]
+    pass_filenames: false
 - repo: https://github.com/numpy/numpydoc
   rev: 'v1.6.0rc1'
   hooks:

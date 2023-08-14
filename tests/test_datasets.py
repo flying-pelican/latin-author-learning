@@ -96,12 +96,11 @@ def test_read_text_wrong_file_format():
 def test_PieceOfWork():
     author = "Gaius Julius Caesar"
     text = "Veni, vidi, vici."
-    name = "quote"
+    title = "quote"
 
-    caesar_quote = PieceOfWork(author=author, text=text, name=name)
+    caesar_quote = PieceOfWork(author=author, text=text, title=title)
 
     assert caesar_quote.author == author
     assert caesar_quote.text == text
-    assert caesar_quote.name == name
-    assert caesar_quote.uuid.is_safe
-    assert caesar_quote.uuid.version == 4
+    assert caesar_quote.title == title
+    assert caesar_quote.hash.name == "md5"

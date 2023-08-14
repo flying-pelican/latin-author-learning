@@ -1,7 +1,7 @@
 import json
+from hashlib import md5
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from uuid import uuid4
 
 SECTION_SEPARATOR = "\n"
 
@@ -19,8 +19,10 @@ def extract_text(
     meta_key_prefix: Optional[str] = None,
 ) -> str:
     """
-    Extracts text from a nested data structure. Text is concatenated for all keys,
-    that are not specified as meta data keys.
+    Extract text from a nested data structure.
+
+    Text is concatenated for all keys in that file that are not specified as meta
+    data keys. This holds irrespective of the nesting level.
 
     Parameters
     ----------
@@ -39,7 +41,7 @@ def extract_text(
     Returns
     -------
     str
-        Extracted text
+        Extracted text.
 
     Raises
     ------
@@ -82,8 +84,9 @@ def read_text(
     meta_key_prefix: Optional[str] = None,
 ) -> str:
     """
-    Reads text from a nested file using `latin_author_learning.datasets.extract_text`.
-    Currently only JSON format is supported.
+    Read text from a nested file using `latin_author_learning.datasets.extract_text`.
+
+    Currently only JSON format is supported. This could be extended to XML later.
 
     Parameters
     ----------
@@ -101,7 +104,7 @@ def read_text(
     Returns
     -------
     str
-        Extracted text
+        Extracted text.
 
     Raises
     ------
@@ -122,12 +125,23 @@ def read_text(
 
 class PieceOfWork(object):
     """
-    Class for a piece of work. A UUID for this piece of work
-    is set up when an instance of this class is created.
+    Class for a piece of work.
+
+    An MD5 hash for this piece of work is created upon initialization so that the
+    identity of texts can be easily verified.
+
+    Parameters
+    ----------
+    author : str
+        Author of the given piece of work.
+    text : str
+        Actual text (payload data).
+    title : str
+        Human readable name for the piece of work.
     """
 
-    def __init__(self, author: str, text: str, name: str):
+    def __init__(self, author: str, text: str, title: str):
         self.author = author
         self.text = text
-        self.name = name
-        self.uuid = uuid4()
+        self.title = title
+        self.hash = md5(text.encode(), usedforsecurity=False)
