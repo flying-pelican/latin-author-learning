@@ -1,7 +1,7 @@
 import json
 from hashlib import md5
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
 SECTION_SEPARATOR = "\n"
 
@@ -223,6 +223,18 @@ class Corpus(object):
         """
         return set([w.author for w in self._works])
 
+    @property
+    def hashes(self) -> Set[str]:
+        """
+        Get all hashes of the works contained in the corpus.
+
+        Returns
+        -------
+        Set[str]
+            Set of hexdigests of the text hashes.
+        """
+        return set([w.hash.hexdigest() for w in self._works])
+
     def _get_pre_existing_work(self, new_work: PieceOfWork) -> Optional[PieceOfWork]:
         for pre_existing_work in self._works:
             if pre_existing_work == new_work:
@@ -263,7 +275,7 @@ class Corpus(object):
         """
         return [w for w in self._works if w.author == author]
 
-    def to_files(self, path: Path):
+    def to_files(self, path: Path, sub_folder_name: Optional[str] = None):
         """
         Write corpus to the file system.
 
@@ -273,7 +285,7 @@ class Corpus(object):
         corpus root path
         |
         |-> author paths
-            |-> author sub path with dir name `opensource`
+            |-> author sub path with dir name specified in `sub_folder_name`
                 |-> file path corresponding to work title with `.json` suffix.
         ```
 
@@ -282,6 +294,9 @@ class Corpus(object):
         path : pathlib.Path
             Path in which the corpus should be stored.
             A root dir for the corpus files will be created within this directory.
+        sub_folder_name : Optional[str]
+            Name for sub-folders within the author directories. If None, fildes for
+            the text are directly placed in the author directories.
         """
         root_path = path / convert_to_path_name(self.name)
         root_path.mkdir()
@@ -289,12 +304,53 @@ class Corpus(object):
         for author in self.authors:
             author_path = root_path / convert_to_path_name(author)
             author_path.mkdir()
-            author_sub_path = author_path / "opensource"
-            author_sub_path.mkdir()
+            if sub_folder_name is None:
+                author_sub_path = author_path
+            else:
+                author_sub_path = author_path / sub_folder_name
+                author_sub_path.mkdir()
 
             works = self.get_works_from_author(author)
             for work in works:
                 work.to_file(author_sub_path)
+
+    def _add_works(self, works_path: Iterable[Path], author: str, **kwargs: Any):
+        for file in works_path:
+            if file.suffix.lower() == ".json":
+                text = read_text(file, **kwargs)
+                work = PieceOfWork(author=author, text=text, title=file.name)
+                self.add_piece_of_work(work)
+
+    def add_data_from_files(self, corpus_root_path: Path, **kwargs: Any):
+        """
+        Add data from structured JSON files.
+
+        These files are organized in the the following folder structure.
+        ```
+        corpus root path
+        |
+        |-> author paths
+            |-> sub path
+            |   |-> file path corresponding to work title with `.json` suffix.
+            |
+            |-> file path corresponding to work title with `.json` suffix.
+        ```
+        The individual files are read via `latin_author_learning.datasets.read_text`.
+
+        Parameters
+        ----------
+        corpus_root_path : pathlib.Path
+            Path where the author folders are contained.
+        **kwargs : Any
+            Keyword arguments to pass on to `latin_author_learning.datasets.read_text`.
+        """
+        author_paths = corpus_root_path.iterdir()
+        for author in filter(lambda p: p.is_dir(), author_paths):
+            for sub_path in author.iterdir():
+                if sub_path.is_dir():
+                    self._add_works(sub_path.iterdir(), author=author.name, **kwargs)
+                else:
+                    self._add_works([sub_path], author=author.name, **kwargs)
 
 
 def convert_to_path_name(name: str) -> str:

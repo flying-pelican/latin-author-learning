@@ -73,6 +73,12 @@ def sample_corpus(caesar_quote, de_bello_gallico, cato_quote):
     return corpus
 
 
+@pytest.fixture()
+def corpus_folder(tmpdir, sample_corpus):
+    sample_corpus.to_files(tmpdir, sub_folder_name="opensource")
+    return Path(tmpdir) / convert_to_path_name(sample_corpus.name)
+
+
 def test_extract_text(sample_file_content, caesar_quotes):
     text = extract_text(sample_file_content, meta_keys=["@author", "@name", "@year"])
     assert text == SECTION_SEPARATOR.join(caesar_quotes)
@@ -238,8 +244,9 @@ def test_Corpus__no_duplicates(caesar_quote):
         corpus.add_piece_of_work(arrogant_quote)
 
 
-def test_Corpus__to_files(sample_corpus, tmpdir):
-    sample_corpus.to_files(tmpdir)
+@pytest.mark.parametrize("sub_folder", [None, "opensource"])
+def test_Corpus__to_files(sample_corpus, tmpdir, sub_folder):
+    sample_corpus.to_files(tmpdir, sub_folder_name=sub_folder)
 
     root_path = Path(tmpdir) / convert_to_path_name(sample_corpus.name)
     assert root_path.exists()
@@ -248,12 +255,20 @@ def test_Corpus__to_files(sample_corpus, tmpdir):
         works = sample_corpus.get_works_from_author(author)
         for work in works:
             work_path = root_path / convert_to_path_name(author)
-            work_path /= "opensource"
+            work_path /= "" if sub_folder is None else sub_folder
             work_path /= convert_to_path_name(work.title) + ".json"
             assert work_path.exists()
             with work_path.open("r") as fh:
                 content = json.load(fh)
             assert content == work.to_dict()
+
+
+def test_Corpus__add_data_from_files(corpus_folder, sample_corpus):
+    extracted_corpus = Corpus(name="extracted")
+    extracted_corpus.add_data_from_files(corpus_folder, meta_keys=["author", "title"])
+    assert len(extracted_corpus.works) == len(sample_corpus.works)
+    assert len(extracted_corpus.authors) == len(sample_corpus.authors)
+    assert extracted_corpus.hashes == sample_corpus.hashes
 
 
 def test_convert_to_path_name():
