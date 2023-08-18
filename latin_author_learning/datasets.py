@@ -52,6 +52,8 @@ def extract_text(
         meta_keys = []
     if isinstance(data, str):
         return data
+    elif data is None:
+        return ""
     elif isinstance(data, dict):
         text = ""
         for k in data:

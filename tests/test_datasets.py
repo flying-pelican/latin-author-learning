@@ -26,7 +26,11 @@ def sample_file_content(caesar_quotes):
         "@author": "Gaius Julius Ceasar",
         "@name": "caesar_quotes",
         "@year": "~50 BC",
-        "sections": {"pars prima": caesar_quotes[0], "pars secunda": caesar_quotes[1]},
+        "sections": {
+            "pars prima": caesar_quotes[0],
+            "pars secunda": caesar_quotes[1],
+            "commentario": None,
+        },
     }
 
 
@@ -73,9 +77,14 @@ def sample_corpus(caesar_quote, de_bello_gallico, cato_quote):
     return corpus
 
 
+@pytest.fixture(scope="session", params=[None, "opensource"])
+def sub_folder(request):
+    return request.param
+
+
 @pytest.fixture()
-def corpus_folder(tmpdir, sample_corpus):
-    sample_corpus.to_files(tmpdir, sub_folder_name="opensource")
+def corpus_folder(tmpdir, sample_corpus, sub_folder):
+    sample_corpus.to_files(tmpdir, sub_folder_name=sub_folder)
     return Path(tmpdir) / convert_to_path_name(sample_corpus.name)
 
 
@@ -244,7 +253,6 @@ def test_Corpus__no_duplicates(caesar_quote):
         corpus.add_piece_of_work(arrogant_quote)
 
 
-@pytest.mark.parametrize("sub_folder", [None, "opensource"])
 def test_Corpus__to_files(sample_corpus, tmpdir, sub_folder):
     sample_corpus.to_files(tmpdir, sub_folder_name=sub_folder)
 
