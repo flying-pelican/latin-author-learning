@@ -253,6 +253,27 @@ def test_Corpus__no_duplicates(caesar_quote):
         corpus.add_piece_of_work(arrogant_quote)
 
 
+def test_Corpus__works_by_author(sample_corpus):
+    all_works = set([])
+    for author in sample_corpus.authors:
+        author_works = sample_corpus.get_works_from_author(author)
+        author_works_hashes = [w.hash.hexdigest() for w in author_works]
+        assert set(author_works_hashes).issubset(sample_corpus.hashes)
+
+        all_works = all_works.union(author_works_hashes)
+    assert all_works == sample_corpus.hashes
+
+
+def test_Corpus__unknown_author(sample_corpus):
+    author = "Lucretius"
+    assert author not in sample_corpus.authors
+    with pytest.raises(
+        ValueError,
+        match=f"Author '{author}' is not present in corpus '{sample_corpus.name}'",
+    ):
+        _ = sample_corpus.get_works_from_author(author)
+
+
 def test_Corpus__to_files(sample_corpus, tmpdir, sub_folder):
     sample_corpus.to_files(tmpdir, sub_folder_name=sub_folder)
 

@@ -274,7 +274,16 @@ class Corpus(object):
         -------
         List[PieceOfWork]
             Works written by the specified author.
+
+        Raises
+        ------
+        ValueError
+            If specified author is not found in corpus.
         """
+        if author not in self.authors:
+            raise ValueError(
+                f"Author '{author}' is not present in corpus '{self.name}'."
+            )
         return [w for w in self._works if w.author == author]
 
     def to_files(self, path: Path, sub_folder_name: Optional[str] = None):
