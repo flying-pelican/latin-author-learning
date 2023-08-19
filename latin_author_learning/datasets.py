@@ -316,14 +316,26 @@ class Corpus(object):
             for work in works:
                 work.to_file(author_sub_path)
 
-    def _add_works(self, works_path: Iterable[Path], author: str, **kwargs: Any):
-        for file in works_path:
-            if file.suffix.lower() == ".json":
-                text = read_text(file, **kwargs)
-                work = PieceOfWork(author=author, text=text, title=file.name)
-                self.add_piece_of_work(work)
+    def _add_works(
+        self,
+        works_path: Iterable[Path],
+        author: str,
+        filename_contains: str,
+        **kwargs: Any,
+    ):
+        filtered_paths = filter(lambda p: p.suffix.lower() == ".json", works_path)
+        filtered_paths = filter(lambda p: filename_contains in p.name, filtered_paths)
+        for file in filtered_paths:
+            text = read_text(file, **kwargs)
+            work = PieceOfWork(author=author, text=text, title=file.name)
+            self.add_piece_of_work(work)
 
-    def add_data_from_files(self, corpus_root_path: Path, **kwargs: Any):
+    def add_data_from_files(
+        self,
+        corpus_root_path: Path,
+        filename_contains: str = "",
+        **kwargs: Any,
+    ):
         """
         Add data from structured JSON files.
 
@@ -343,6 +355,9 @@ class Corpus(object):
         ----------
         corpus_root_path : pathlib.Path
             Path where the author folders are contained.
+        filename_contains : str
+            Only read files with file names that contain this string. By default,
+            there is no further filtering of JSON files.
         **kwargs : Any
             Keyword arguments to pass on to `latin_author_learning.datasets.read_text`.
         """
@@ -350,9 +365,10 @@ class Corpus(object):
         for author in filter(lambda p: p.is_dir(), author_paths):
             for sub_path in author.iterdir():
                 if sub_path.is_dir():
-                    self._add_works(sub_path.iterdir(), author=author.name, **kwargs)
+                    files: Iterable[Path] = sub_path.iterdir()
                 else:
-                    self._add_works([sub_path], author=author.name, **kwargs)
+                    files = [sub_path]
+                self._add_works(files, author.name, filename_contains, **kwargs)
 
 
 def convert_to_path_name(name: str) -> str:

@@ -279,6 +279,16 @@ def test_Corpus__add_data_from_files(corpus_folder, sample_corpus):
     assert extracted_corpus.hashes == sample_corpus.hashes
 
 
+def test_Corpus__add_data_from_files__filter(corpus_folder, sample_corpus):
+    extracted_corpus = Corpus(name="extracted")
+    extracted_corpus.add_data_from_files(
+        corpus_folder, filename_contains="_quot", meta_keys=["author", "title"]
+    )
+    assert len(extracted_corpus.works) < len(sample_corpus.works)
+    assert len(extracted_corpus.authors) <= len(sample_corpus.authors)
+    assert extracted_corpus.hashes.issubset(sample_corpus.hashes)
+
+
 def test_convert_to_path_name():
     name = "Gaius Julius Ceasar"
     converted = convert_to_path_name(name)
