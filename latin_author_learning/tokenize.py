@@ -44,8 +44,7 @@ def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
     return subtoken_strings
 
 
-def _tokenize_words(sentence: str) -> str:
-    word_tokenizer = WordTokenizer()
+def _tokenize_words(sentence: str, word_tokenizer: WordTokenizer) -> str:
     words = word_tokenizer.tokenize(sentence)
     sentence = WORD_SEPARATOR.join(words)
     sentence += SENTENCE_DELIMITER
@@ -72,9 +71,13 @@ def convert_to_tokens(text: str) -> str:
        Tokenized text.
     """
     sentence_tokenizer = SentenceTokenizer()
+    word_tokenizer = WordTokenizer()
+
     sentences = sentence_tokenizer.tokenize(text)
     sentences = map(lambda sentence: sentence.lower(), sentences)
-    sentences = map(_tokenize_words, sentences)
+    sentences = map(
+        lambda sentence: _tokenize_words(sentence, word_tokenizer), sentences
+    )
     tokenized_text = "".join(sentences)
     for delim in DELIMITERS:
         tokenized_text = tokenized_text.replace(WORD_SEPARATOR + delim, delim).replace(

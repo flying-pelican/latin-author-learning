@@ -6,6 +6,7 @@ import lorem
 import pytest
 import torch
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
+from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
 
 from latin_author_learning.tokenize import (
     CONTROL_SEQUENCES,
@@ -76,15 +77,17 @@ def test_get_substring_tokens(path_test_subword_encoder):
 
 @pytest.mark.parametrize("delimiter", ["", ".", "?", "!"])
 def test_tokenize_words__delimiters(delimiter):
+    word_tokenizer = WordTokenizer()
     sentence = "Veni, vidi, vici" + delimiter
-    tokenized = _tokenize_words(sentence)
+    tokenized = _tokenize_words(sentence, word_tokenizer)
     assert tokenized.endswith(SENTENCE_DELIMITER)
 
 
 @pytest.mark.parametrize("whitespace", ["   ", "\n", "\t"])
 def test_tokenize_words__whitespace(whitespace):
+    word_tokenizer = WordTokenizer()
     sentence = "Veni, vidi, vici.".replace(" ", whitespace)
-    tokenized_sentence = _tokenize_words(sentence)
+    tokenized_sentence = _tokenize_words(sentence, word_tokenizer)
 
     disallowed_whitespaces = string.whitespace.replace(WORD_SEPARATOR, "")
     for symbol in disallowed_whitespaces:
