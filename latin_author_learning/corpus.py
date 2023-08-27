@@ -86,7 +86,7 @@ def read_text(
     meta_key_prefix: Optional[str] = None,
 ) -> str:
     """
-    Read text from a nested file using `latin_author_learning.datasets.extract_text`.
+    Read text from a nested file using `latin_author_learning.corpus.extract_text`.
 
     Currently only JSON format is supported. This could be extended to XML later.
 
@@ -358,7 +358,7 @@ class Corpus(object):
             |
             |-> file path corresponding to work title with `.json` suffix.
         ```
-        The individual files are read via `latin_author_learning.datasets.read_text`.
+        The individual files are read via `latin_author_learning.corpus.read_text`.
 
         Parameters
         ----------
@@ -368,7 +368,7 @@ class Corpus(object):
             Only read files with file names that contain this string. By default,
             there is no further filtering of JSON files.
         **kwargs : Any
-            Keyword arguments to pass on to `latin_author_learning.datasets.read_text`.
+            Keyword arguments to pass on to `latin_author_learning.corpus.read_text`.
         """
         author_paths = corpus_root_path.iterdir()
         for author in filter(lambda p: p.is_dir(), author_paths):

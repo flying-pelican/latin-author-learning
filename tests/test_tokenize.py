@@ -23,7 +23,7 @@ from latin_author_learning.tokenize import (
 @pytest.fixture(scope="session")
 def path_test_subword_encoder():
     file_dir = Path(__file__).parent
-    return file_dir / "test_data" / "test.subword.encoder"
+    return file_dir / "data" / "test.subword.encoder"
 
 
 def random_text(length=500):

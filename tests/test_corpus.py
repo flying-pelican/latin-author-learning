@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from latin_author_learning.datasets import (
+from latin_author_learning.corpus import (
     SECTION_SEPARATOR,
     Corpus,
     PieceOfWork,
