@@ -236,6 +236,15 @@ def test_Corpus(caesar_quote, cato_quote, de_bello_gallico):
     assert corpus.authors == set([caesar_quote.author, cato_quote.author])
 
 
+def test_Corpus__from_list_of_works(caesar_quote, cato_quote, de_bello_gallico):
+    works = [caesar_quote, cato_quote, de_bello_gallico]
+
+    corpus = Corpus("test_corpus")
+    corpus.add_list_of_works(works)
+    assert corpus.hashes == set([w.hash.hexdigest() for w in works])
+    assert corpus.authors == set([w.author for w in works])
+
+
 def test_Corpus__no_duplicates(caesar_quote):
     name = "test corpus"
     corpus = Corpus(name)

@@ -261,6 +261,18 @@ class Corpus(object):
             )
         self._works.append(new_work)
 
+    def add_list_of_works(self, works: List[PieceOfWork]):
+        """
+        Add multiple works.
+
+        Parameters
+        ----------
+        works : List[PieceOfWork]
+             Works to be added to the corpus.
+        """
+        for work in works:
+            self.add_piece_of_work(work)
+
     def get_works_from_author(self, author: str) -> List[PieceOfWork]:
         """
         Get works from a particular author.
