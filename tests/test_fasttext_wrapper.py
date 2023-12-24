@@ -20,7 +20,12 @@ def caesar_tacitus_corpus():
 
 @pytest.fixture()
 def training_file(tmpdir):
-    return tmpdir / "training_data"
+    return tmpdir / "training_data.txt"
+
+
+@pytest.fixture()
+def valid_file(tmpdir):
+    return tmpdir / "test_data.txt"
 
 
 @pytest.fixture(scope="session")
@@ -81,6 +86,18 @@ def test_DatasetWrapper__train_predict(caesar_tacitus_corpus, training_file):
         assert len(prediction[1]) == 1
         assert prediction[1][0] > 0.0
         assert prediction[1][0] < 1.0
+
+
+def test_DatasetWrapper__train_validate(
+    caesar_tacitus_corpus, training_file, valid_file
+):
+    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus)
+    dataset_wrapper.get_training_data(training_file)
+    dataset_wrapper.get_validation_data(valid_file)
+    model = fasttext.train_supervised(input=str(training_file))
+
+    validation_results = model.test(str(valid_file))
+    assert len(validation_results) == 3
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])

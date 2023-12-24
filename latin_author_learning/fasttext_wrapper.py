@@ -45,17 +45,6 @@ class DatasetWrapper(object):
             )
         self._split_train_test()
 
-    def _split_train_test(self):
-        self.train_works = []
-        self.test_works = []
-        for author in self._corpus.authors:
-            author_works = self._corpus.get_works_from_author(author)
-            num_works_in_train = math.floor(
-                len(author_works) * (1.0 - self.fraction_for_test)
-            )
-            self.train_works += author_works[:num_works_in_train]
-            self.test_works += author_works[num_works_in_train:]
-
     def get_training_data(self, file: Path) -> None:
         """
         Dump training data to the specified file.
@@ -66,8 +55,19 @@ class DatasetWrapper(object):
             Filepath to which the training data should be dumped to.
         """
         training_string = _works_as_str(self.train_works, include_labels=True)
-        with open(file, "w") as f:
-            f.write(training_string)
+        self._text_to_file(training_string, file)
+
+    def get_validation_data(self, file: Path) -> None:
+        """
+        Dump validation data to the specified file.
+
+        Parameters
+        ----------
+        file : pathlib.Path
+            Filepath to which the validation data should be dumped to.
+        """
+        validation_string = _works_as_str(self.test_works, include_labels=False)
+        self._text_to_file(validation_string, file)
 
     def get_test_data(self) -> str:
         """
@@ -80,3 +80,19 @@ class DatasetWrapper(object):
             piece of work.
         """
         return _works_as_str(self.test_works, include_labels=False)
+
+    def _split_train_test(self):
+        self.train_works = []
+        self.test_works = []
+        for author in self._corpus.authors:
+            author_works = self._corpus.get_works_from_author(author)
+            num_works_in_train = math.floor(
+                len(author_works) * (1.0 - self.fraction_for_test)
+            )
+            self.train_works += author_works[:num_works_in_train]
+            self.test_works += author_works[num_works_in_train:]
+
+    @staticmethod
+    def _text_to_file(text: str, file: Path) -> None:
+        with open(file, "w") as f:
+            f.write(text)
