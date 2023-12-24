@@ -3,12 +3,13 @@ from pathlib import Path
 from typing import List
 
 from latin_author_learning.corpus import Corpus, PieceOfWork
+from latin_author_learning.tokenize import convert_to_tokens
 
 
 def _works_as_str(works: List[PieceOfWork], include_labels: bool) -> str:
     result = []
     for work in works:
-        text = " ".join(work.text.split())
+        text = convert_to_tokens(work.text)
         author = "_".join(work.author.lower().split())
         if include_labels:
             result.append(f"__label__{author} {text}")

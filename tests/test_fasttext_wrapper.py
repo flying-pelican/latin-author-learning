@@ -5,6 +5,7 @@ import numpy as np
 import fasttext
 
 from latin_author_learning.corpus import Corpus, PieceOfWork
+from latin_author_learning.tokenize import convert_to_tokens
 from latin_author_learning.fasttext_wrapper import DatasetWrapper, _works_as_str
 
 
@@ -14,7 +15,11 @@ def caesar_tacitus_corpus():
     file_dir = Path(__file__).parent
     path = file_dir / "data/small_sample_corpus"
     corpus = Corpus("test_Cicero_Tacitus")
-    corpus.add_data_from_files(path / corpus_name)
+    corpus.add_data_from_files(
+        path / corpus_name,
+        meta_keys=["fileDesc", "teiHeader"],
+        meta_key_prefix="@",
+    )
     return corpus
 
 
@@ -56,13 +61,15 @@ def test__works_as_str__author_encoding_train(sample_works):
 
 def test__works_as_str__no_author_info_test(sample_works):
     for work in sample_works:
-        assert work.text == _works_as_str([work], include_labels=False)
+        assert convert_to_tokens(work.text) == _works_as_str(
+            [work], include_labels=False
+        )
 
 
 @pytest.mark.parametrize("include_labels", [True, False])
 def test__works_as_str__text(sample_works, include_labels):
     for work in sample_works:
-        assert work.text in _works_as_str([work], include_labels)
+        assert convert_to_tokens(work.text) in _works_as_str([work], include_labels)
 
 
 @pytest.mark.parametrize("include_labels", [True, False])
@@ -112,7 +119,7 @@ def test_DatasetWrapper__get_train_data(
     training_lines = dumped_training_data.split("\n")
     assert len(training_lines) == len(dataset_wrapper.train_works)
     for index, work in enumerate(dataset_wrapper.train_works):
-        assert " ".join(work.text.split()) in training_lines[index]
+        assert convert_to_tokens(work.text) in training_lines[index]
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
@@ -122,7 +129,7 @@ def test_DatasetWrapper__get_test_data(caesar_tacitus_corpus, fraction_for_test)
     test_lines = test_data.split("\n")
     assert len(test_lines) == len(dataset_wrapper.test_works)
     for index, work in enumerate(dataset_wrapper.test_works):
-        assert " ".join(work.text.split()) in test_lines[index]
+        assert convert_to_tokens(work.text) in test_lines[index]
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
