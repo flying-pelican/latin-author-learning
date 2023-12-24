@@ -1,9 +1,8 @@
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
-from torchnlp.encoders.text import SubwordEncoder
 
 EXCLAMATION = "EXCL"
 FULL_STOP = "FS"
@@ -92,28 +91,3 @@ def convert_to_tokens(text: str) -> str:
         )
 
     return tokenized_text
-
-
-class SentenceAwareEncoder(SubwordEncoder):
-    """
-    Sentence aware sub-word encoder for Latin.
-
-    Derived class of `torchnlp.encoders.text.SubwordEncoder` that ensures a
-    representation of the control sequences used in
-    `latin_author_learning.tokenize.convert_to_tokens` as a single token.
-
-    Parameters
-    ----------
-    vocabulary : List[str]
-        List of words. All word must have a trailing underscore, but no further
-        underscores.
-    *args : List
-        Further arguments for base class.
-    **kwargs : Dict
-        Further keywords arguments for base class.
-    """
-
-    def __init__(self, vocabulary: List[str], *args: List, **kwargs: Dict):
-        added_vocab = CONTROL_SEQUENCES + DELIMITERS
-        formatted_delims = [w + "_" for w in added_vocab]
-        super().__init__(formatted_delims + vocabulary, *args, **kwargs)

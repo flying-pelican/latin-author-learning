@@ -4,7 +4,6 @@ from pathlib import Path
 
 import lorem
 import pytest
-import torch
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
 
@@ -13,7 +12,6 @@ from latin_author_learning.tokenize import (
     DELIMITERS,
     SENTENCE_DELIMITER,
     WORD_SEPARATOR,
-    SentenceAwareEncoder,
     _tokenize_words,
     convert_to_tokens,
     get_subtoken_strings,
@@ -128,34 +126,3 @@ def test_convert_to_tokens__whitespace(tokenized_sample_text):
     disallowed_whitespaces = string.whitespace.replace(WORD_SEPARATOR, "")
     for symbol in disallowed_whitespaces:
         assert tokenized_sample_text.count(symbol) == 0
-
-
-def test_SentenceAwareEncoder__invertible(tokenized_sample_text, vocabulary):
-    encoder = SentenceAwareEncoder(vocabulary)
-    encoded = encoder.encode(tokenized_sample_text)
-    assert not torch.is_floating_point(encoded)
-    assert encoder.decode(encoded) == tokenized_sample_text
-
-
-def test_SentenceAwareEncoder__subword(tokenized_sample_text, vocabulary):
-    encoder = SentenceAwareEncoder(vocabulary)
-    encoded = encoder.encode(tokenized_sample_text)
-
-    num_words = len(tokenized_sample_text.split(WORD_SEPARATOR))
-    assert len(encoded) > num_words
-
-
-@pytest.mark.parametrize("control_sequence", CONTROL_SEQUENCES)
-def test_SentenceAwareEncoder__additional_vocabulary(control_sequence, vocabulary):
-    encoder = SentenceAwareEncoder(vocabulary)
-    encoded_delimiter = encoder.encode(control_sequence)
-    assert len(encoded_delimiter) == 1
-
-
-@pytest.mark.parametrize("control_sequence", CONTROL_SEQUENCES)
-def test_SentenceAwareEncoder__control_sequences(control_sequence, vocabulary):
-    encoder = SentenceAwareEncoder(vocabulary)
-
-    sample_text = f"veni {control_sequence} vidi"
-    encoded = encoder.encode(sample_text)
-    assert len(encoded) == len(sample_text.split(" "))
