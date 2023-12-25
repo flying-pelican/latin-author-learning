@@ -44,6 +44,15 @@ def sample_works():
     return [bellum_gallicum, caesar_quote]
 
 
+def assert_file_contents_in_works(file, works):
+    with open(file, "r") as f:
+        dumped_data = f.read()
+    lines = dumped_data.split("\n")
+    assert len(lines) == len(works)
+    for index, work in enumerate(works):
+        assert convert_to_tokens(work.text) in lines[index]
+
+
 @pytest.mark.parametrize("include_labels", [True, False])
 def test__works_as_str__multiple_works(sample_works, include_labels):
     stringyfied_works = _works_as_str(sample_works, include_labels)
@@ -105,6 +114,7 @@ def test_DatasetWrapper__train_validate(
 
     validation_results = model.test(str(valid_file))
     assert len(validation_results) == 3
+    assert validation_results[0] == len(dataset_wrapper.test_works)
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
@@ -113,13 +123,16 @@ def test_DatasetWrapper__get_train_data(
 ):
     dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
     dataset_wrapper.get_training_data(training_file)
+    assert_file_contents_in_works(training_file, dataset_wrapper.train_works)
 
-    with open(training_file, "r") as f:
-        dumped_training_data = f.read()
-    training_lines = dumped_training_data.split("\n")
-    assert len(training_lines) == len(dataset_wrapper.train_works)
-    for index, work in enumerate(dataset_wrapper.train_works):
-        assert convert_to_tokens(work.text) in training_lines[index]
+
+@pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
+def test_DatasetWrapper__get_validation_data(
+    caesar_tacitus_corpus, fraction_for_test, valid_file
+):
+    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+    dataset_wrapper.get_validation_data(valid_file)
+    assert_file_contents_in_works(valid_file, dataset_wrapper.test_works)
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])

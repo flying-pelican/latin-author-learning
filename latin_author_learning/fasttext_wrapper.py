@@ -67,7 +67,7 @@ class DatasetWrapper(object):
         file : pathlib.Path
             Filepath to which the validation data should be dumped to.
         """
-        validation_string = _works_as_str(self.test_works, include_labels=False)
+        validation_string = _works_as_str(self.test_works, include_labels=True)
         self._text_to_file(validation_string, file)
 
     def get_test_data(self) -> str:
