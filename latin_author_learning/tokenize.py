@@ -6,6 +6,8 @@ from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
 
 WORD_SEPARATOR = " "
 DELIMITERS = [".", ",", ";", "?", "!", ":"]
+SENTENCE_TOKENIZER = SentenceTokenizer()
+WORD_TOKENIZER = WordTokenizer()
 
 
 def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
@@ -37,8 +39,8 @@ def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
     return subtoken_strings
 
 
-def _tokenize_words(sentence: str, word_tokenizer: WordTokenizer) -> str:
-    words = word_tokenizer.tokenize(sentence)
+def _tokenize_words(sentence: str, WORD_TOKENIZER: WordTokenizer) -> str:
+    words = WORD_TOKENIZER.tokenize(sentence)
     words = filter(lambda w: w not in DELIMITERS, words)
     sentence = WORD_SEPARATOR.join(words)
     return sentence
@@ -63,13 +65,11 @@ def convert_to_tokens(text: str) -> str:
     str
        Tokenized text.
     """
-    sentence_tokenizer = SentenceTokenizer()
-    word_tokenizer = WordTokenizer()
 
-    sentences = sentence_tokenizer.tokenize(text)
+    sentences = SENTENCE_TOKENIZER.tokenize(text)
     sentences = map(lambda sentence: sentence.lower(), sentences)
     sentences = map(
-        lambda sentence: _tokenize_words(sentence, word_tokenizer), sentences
+        lambda sentence: _tokenize_words(sentence, WORD_TOKENIZER), sentences
     )
     tokenized_text = "".join(sentences)
 
