@@ -6,7 +6,11 @@ import fasttext
 
 from latin_author_learning.corpus import Corpus, PieceOfWork
 from latin_author_learning.tokenize import convert_to_tokens
-from latin_author_learning.fasttext_wrapper import DatasetWrapper, _works_as_str
+from latin_author_learning.fasttext_wrapper import (
+    DatasetWrapper,
+    model_to_vec_str,
+    _works_as_str,
+)
 
 
 @pytest.fixture(scope="session")
@@ -42,6 +46,14 @@ def sample_works():
     )
     caesar_quote = PieceOfWork(title="Quote", author="Caesar", text="Veni, vidi, vici.")
     return [bellum_gallicum, caesar_quote]
+
+
+@pytest.fixture()
+def embedding_model(caesar_tacitus_corpus, training_file):
+    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus)
+    dataset_wrapper.get_training_data(training_file)
+    model = fasttext.train_unsupervised(str(training_file))
+    return model
 
 
 def assert_file_contents_in_works(file, works):
@@ -168,3 +180,23 @@ def test_DatasetWrapper__invalid_fraction_for_test(
 ):
     with pytest.raises(ValueError):
         _ = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+
+
+def test_model_to_vec_str(embedding_model):
+    vec_str = model_to_vec_str(embedding_model)
+    words = embedding_model.get_words()
+
+    vec_lines = vec_str.split("\n")
+    assert len(vec_lines) == len(words) + 1
+
+    header_info = vec_lines[0].split()
+    assert len(header_info) == 2
+    assert int(header_info[0]) == len(words)
+    assert int(header_info[1]) == embedding_model.get_dimension()
+
+    for line in vec_lines[1:]:
+        line_contents = line.split()
+        assert line_contents[0] in words
+        embedding_vec = np.array(line_contents[1:], dtype=float)
+        assert len(embedding_vec) == embedding_model.get_dimension()
+        assert np.sum(embedding_vec**2) > 0.0

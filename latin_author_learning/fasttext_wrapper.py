@@ -2,6 +2,8 @@ import math
 from pathlib import Path
 from typing import List
 
+from fasttext.FastText import _FastText
+
 from latin_author_learning.corpus import Corpus, PieceOfWork
 from latin_author_learning.tokenize import convert_to_tokens
 
@@ -97,3 +99,26 @@ class DatasetWrapper(object):
     def _text_to_file(text: str, file: Path) -> None:
         with open(file, "w") as f:
             f.write(text)
+
+
+def model_to_vec_str(model: _FastText) -> str:
+    """
+    Convert a fasttext model into the contens of a vec. file.
+
+    Parameters
+    ----------
+    model : fasttext.FastText._FastText
+        Model as returned by `fasttext.train_unsupervised`.
+
+    Returns
+    -------
+    str
+        Contents of the respective .vec file.
+    """
+    words = model.get_words()
+    vec_str = f"{len(words)} {model.get_dimension()}"
+    for word in words:
+        word_vec = model.get_word_vector(word)
+        word_vec_str = " ".join([str(num) for num in word_vec])
+        vec_str += f"\n{word} {word_vec_str}"
+    return vec_str
