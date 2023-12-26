@@ -4,14 +4,10 @@ from pathlib import Path
 
 import lorem
 import pytest
-from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
 
 from latin_author_learning.tokenize import (
-    CONTROL_SEQUENCES,
     DELIMITERS,
-    SENTENCE_DELIMITER,
-    WORD_SEPARATOR,
     _tokenize_words,
     convert_to_tokens,
     get_subtoken_strings,
@@ -78,7 +74,7 @@ def test_tokenize_words__delimiters(delimiter):
     word_tokenizer = WordTokenizer()
     sentence = "Veni, vidi, vici" + delimiter
     tokenized = _tokenize_words(sentence, word_tokenizer)
-    assert tokenized.endswith(SENTENCE_DELIMITER)
+    assert tokenized == _tokenize_words("Veni vidi vici", word_tokenizer)
 
 
 @pytest.mark.parametrize("whitespace", ["   ", "\n", "\t"])
@@ -86,43 +82,17 @@ def test_tokenize_words__whitespace(whitespace):
     word_tokenizer = WordTokenizer()
     sentence = "Veni, vidi, vici.".replace(" ", whitespace)
     tokenized_sentence = _tokenize_words(sentence, word_tokenizer)
-
-    disallowed_whitespaces = string.whitespace.replace(WORD_SEPARATOR, "")
-    for symbol in disallowed_whitespaces:
-        assert tokenized_sentence.count(symbol) == 0
+    assert tokenized_sentence.split() == tokenized_sentence.split(" ")
 
 
-@pytest.mark.parametrize("delimiter", DELIMITERS)
+@pytest.mark.parametrize("delimiter", [",", ";", ":", ".", "!", "?"])
 def test_convert_to_tokens__delimiters(delimiter, tokenized_sample_text):
-    assert tokenized_sample_text.count(delimiter + SENTENCE_DELIMITER) == 0
-
-
-@pytest.mark.parametrize("control_sequence", CONTROL_SEQUENCES)
-def test_convert_to_tokens__control_sequences(control_sequence, tokenized_sample_text):
-    padded_control_sequence = WORD_SEPARATOR + control_sequence + WORD_SEPARATOR
-    assert tokenized_sample_text.count(control_sequence) == tokenized_sample_text.count(
-        padded_control_sequence
-    )
-
-
-def test_convert_to_tokens__sentences(sample_text, tokenized_sample_text):
-    sentence_count = 0
-    for delimiter in CONTROL_SEQUENCES:
-        sentence_count += tokenized_sample_text.count(delimiter)
-    sentences = SentenceTokenizer().tokenize(sample_text)
-    assert len(sentences) == sentence_count
+    assert tokenized_sample_text.count(f" {delimiter} ") == 0
 
 
 def test_convert_to_tokens__lower_case(tokenized_sample_text):
-    text_wo_control_sequences = tokenized_sample_text
-    for delimiter in CONTROL_SEQUENCES:
-        text_wo_control_sequences = text_wo_control_sequences.replace(
-            delimiter, WORD_SEPARATOR
-        )
-    assert text_wo_control_sequences == text_wo_control_sequences.lower()
+    assert tokenized_sample_text == tokenized_sample_text.lower()
 
 
 def test_convert_to_tokens__whitespace(tokenized_sample_text):
-    disallowed_whitespaces = string.whitespace.replace(WORD_SEPARATOR, "")
-    for symbol in disallowed_whitespaces:
-        assert tokenized_sample_text.count(symbol) == 0
+    assert tokenized_sample_text.split() == tokenized_sample_text.split(" ")

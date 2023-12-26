@@ -4,14 +4,8 @@ from typing import List
 from cltk.tokenizers.lat.lat import LatinPunktSentenceTokenizer as SentenceTokenizer
 from cltk.tokenizers.lat.lat import LatinWordTokenizer as WordTokenizer
 
-EXCLAMATION = "EXCL"
-FULL_STOP = "FS"
-QUESTION = "QUEST"
-SENTENCE_DELIMITER = "SENT"
 WORD_SEPARATOR = " "
-
-DELIMITERS = [".", ",", ";", "?", "!"]
-CONTROL_SEQUENCES = [FULL_STOP, EXCLAMATION, QUESTION, SENTENCE_DELIMITER]
+DELIMITERS = [".", ",", ";", "?", "!", ":"]
 
 
 def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
@@ -45,8 +39,8 @@ def get_subtoken_strings(tokenizer_path: Path) -> List[str]:
 
 def _tokenize_words(sentence: str, word_tokenizer: WordTokenizer) -> str:
     words = word_tokenizer.tokenize(sentence)
+    words = filter(lambda w: w not in DELIMITERS, words)
     sentence = WORD_SEPARATOR.join(words)
-    sentence += SENTENCE_DELIMITER
     return sentence
 
 
@@ -55,8 +49,8 @@ def convert_to_tokens(text: str) -> str:
     Tokenize a raw text, using the tokenizers from `cltk.tokenizers.lat.lat`.
 
     The tokens returned are the words as lowercase strings. Sentence boundaries are
-    indicated by control sequences in upper case. A simple blank is used as a word
-    delimiter.
+    not visible in the tokenized text as in classical Latin incriptions. Punctuation
+    is ignored. A simple blank is used as a word delimiter.
 
     Parameters
     ----------
@@ -78,16 +72,5 @@ def convert_to_tokens(text: str) -> str:
         lambda sentence: _tokenize_words(sentence, word_tokenizer), sentences
     )
     tokenized_text = "".join(sentences)
-    for delim in DELIMITERS:
-        tokenized_text = tokenized_text.replace(WORD_SEPARATOR + delim, delim).replace(
-            delim + WORD_SEPARATOR, delim
-        )
-    tokenized_text = tokenized_text.replace("." + SENTENCE_DELIMITER, FULL_STOP)
-    tokenized_text = tokenized_text.replace("!" + SENTENCE_DELIMITER, EXCLAMATION)
-    tokenized_text = tokenized_text.replace("?" + SENTENCE_DELIMITER, QUESTION)
-    for cs in CONTROL_SEQUENCES:
-        tokenized_text = tokenized_text.replace(
-            cs, WORD_SEPARATOR + cs + WORD_SEPARATOR
-        )
 
     return tokenized_text
