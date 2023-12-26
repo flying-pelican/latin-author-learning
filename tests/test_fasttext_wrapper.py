@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 import pytest
 
 import numpy as np
@@ -7,6 +8,7 @@ import fasttext
 from latin_author_learning.corpus import Corpus, PieceOfWork
 from latin_author_learning.tokenize import convert_to_tokens
 from latin_author_learning.fasttext_wrapper import (
+    _text_to_chunks,
     DatasetWrapper,
     model_to_vec_str,
     _works_as_str,
@@ -14,7 +16,7 @@ from latin_author_learning.fasttext_wrapper import (
 
 
 @pytest.fixture(scope="session")
-def caesar_tacitus_corpus():
+def cicero_tacitus_corpus():
     corpus_name = "test_Cicero_Tacitus"
     file_dir = Path(__file__).parent
     path = file_dir / "data/small_sample_corpus"
@@ -49,59 +51,87 @@ def sample_works():
 
 
 @pytest.fixture()
-def embedding_model(caesar_tacitus_corpus, training_file):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus)
+def embedding_model(cicero_tacitus_corpus, training_file):
+    dataset_wrapper = DatasetWrapper(cicero_tacitus_corpus)
     dataset_wrapper.get_training_data(training_file)
     model = fasttext.train_unsupervised(str(training_file))
     return model
 
 
-def assert_file_contents_in_works(file, works):
+def assert_file_contents_in_works(file, works, chunksize):
     with open(file, "r") as f:
         dumped_data = f.read()
     lines = dumped_data.split("\n")
-    assert len(lines) == len(works)
-    for index, work in enumerate(works):
-        assert convert_to_tokens(work.text) in lines[index]
+    assert len(lines) >= len(works)
+    all_text = " ".join([w.text for w in works])
+    for line in lines:
+        content = " ".join([w for w in line.split() if not w.startswith("__label__")])
+        assert content in convert_to_tokens(all_text)
+        assert len(content.split()) <= chunksize
+
+
+@pytest.mark.parametrize("chunksize", [5, 7, 17, 500])
+def test__text_to_chunks(cicero_tacitus_corpus, chunksize):
+    work = cicero_tacitus_corpus._works[0]
+    text = convert_to_tokens(work.text)
+
+    chunks = _text_to_chunks(text, chunksize)
+
+    assert " ".join(chunks) == text
+    assert len(chunks) == math.ceil(len(text.split(" ")) / chunksize)
+    for chunk in chunks:
+        assert len(chunk.split()) <= chunksize
 
 
 @pytest.mark.parametrize("include_labels", [True, False])
-def test__works_as_str__multiple_works(sample_works, include_labels):
-    stringyfied_works = _works_as_str(sample_works, include_labels)
-    works_from_string = stringyfied_works.split("\n")
-    for index, work in enumerate(sample_works):
-        assert works_from_string[index] == _works_as_str([work], include_labels)
+@pytest.mark.parametrize("chunksize", [5, 17, 500])
+def test__works_as_str__multiple_works(sample_works, include_labels, chunksize):
+    all_works = _works_as_str(sample_works, include_labels, chunksize)
+    individual_works = [
+        _works_as_str([w], include_labels, chunksize) for w in sample_works
+    ]
+    assert all_works == "\n".join(individual_works)
 
 
 def test__works_as_str__author_encoding_train(sample_works):
     for work in sample_works:
         modified_author_name = work.author.lower().replace(" ", "_")
         expected_label = f"__label__{modified_author_name}"
-        assert expected_label in _works_as_str([work], include_labels=True)
+        work_str = _works_as_str([work], include_labels=True, chunksize=15)
+        assert expected_label in work_str
+        assert work_str.count(expected_label) == work_str.count("__label__")
+        assert work_str.count(expected_label) == len(work_str.split("\n"))
 
 
 def test__works_as_str__no_author_info_test(sample_works):
     for work in sample_works:
-        assert convert_to_tokens(work.text) == _works_as_str(
-            [work], include_labels=False
+        assert "__label__" not in _works_as_str(
+            [work], include_labels=False, chunksize=15
         )
 
 
 @pytest.mark.parametrize("include_labels", [True, False])
-def test__works_as_str__text(sample_works, include_labels):
+@pytest.mark.parametrize("chunksize", [5, 17, 500])
+def test__works_as_str__text(sample_works, include_labels, chunksize):
     for work in sample_works:
-        assert convert_to_tokens(work.text) in _works_as_str([work], include_labels)
+        stringified_work = _works_as_str([work], include_labels, chunksize)
+        for chunk in stringified_work.split("\n"):
+            chunk_without_label = " ".join(
+                [w for w in chunk.split() if not w.startswith("__label__")]
+            )
+            assert chunk_without_label in convert_to_tokens(work.text)
 
 
 @pytest.mark.parametrize("include_labels", [True, False])
-def test__works_as_str__newlines(sample_works, include_labels):
-    for work in sample_works:
-        work.text = work.text.replace(" ", "\n")
-        assert "\n" not in _works_as_str([work], include_labels)
+@pytest.mark.parametrize("chunksize", [5, 17, 500])
+def test__works_as_str__chunksize(sample_works, include_labels, chunksize):
+    lines = _works_as_str(sample_works, include_labels, chunksize).split("\n")
+    for line in lines:
+        assert len(line.split()) <= chunksize + line.count("__label__")
 
 
-def test_DatasetWrapper__train_predict(caesar_tacitus_corpus, training_file):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus)
+def test_DatasetWrapper__train_predict(cicero_tacitus_corpus, training_file):
+    dataset_wrapper = DatasetWrapper(cicero_tacitus_corpus)
     dataset_wrapper.get_training_data(training_file)
     model = fasttext.train_supervised(input=str(training_file))
 
@@ -117,9 +147,9 @@ def test_DatasetWrapper__train_predict(caesar_tacitus_corpus, training_file):
 
 
 def test_DatasetWrapper__train_validate(
-    caesar_tacitus_corpus, training_file, valid_file
+    cicero_tacitus_corpus, training_file, valid_file
 ):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus)
+    dataset_wrapper = DatasetWrapper(cicero_tacitus_corpus)
     dataset_wrapper.get_training_data(training_file)
     dataset_wrapper.get_validation_data(valid_file)
     model = fasttext.train_supervised(input=str(training_file))
@@ -130,26 +160,32 @@ def test_DatasetWrapper__train_validate(
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
+@pytest.mark.parametrize("chunksize", [5, 17, 47, 500])
 def test_DatasetWrapper__get_train_data(
-    caesar_tacitus_corpus, fraction_for_test, training_file
+    cicero_tacitus_corpus, training_file, fraction_for_test, chunksize
 ):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+    dataset_wrapper = DatasetWrapper(
+        cicero_tacitus_corpus, fraction_for_test, chunksize
+    )
     dataset_wrapper.get_training_data(training_file)
-    assert_file_contents_in_works(training_file, dataset_wrapper.train_works)
+    assert_file_contents_in_works(training_file, dataset_wrapper.train_works, chunksize)
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
+@pytest.mark.parametrize("chunksize", [5, 17, 47, 500])
 def test_DatasetWrapper__get_validation_data(
-    caesar_tacitus_corpus, fraction_for_test, valid_file
+    cicero_tacitus_corpus, valid_file, fraction_for_test, chunksize
 ):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+    dataset_wrapper = DatasetWrapper(
+        cicero_tacitus_corpus, fraction_for_test, chunksize
+    )
     dataset_wrapper.get_validation_data(valid_file)
-    assert_file_contents_in_works(valid_file, dataset_wrapper.test_works)
+    assert_file_contents_in_works(valid_file, dataset_wrapper.test_works, chunksize)
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
-def test_DatasetWrapper__get_test_data(caesar_tacitus_corpus, fraction_for_test):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+def test_DatasetWrapper__get_test_data(cicero_tacitus_corpus, fraction_for_test):
+    dataset_wrapper = DatasetWrapper(cicero_tacitus_corpus, fraction_for_test)
     test_data = dataset_wrapper.get_test_data()
     test_lines = test_data.split("\n")
     assert len(test_lines) == len(dataset_wrapper.test_works)
@@ -158,13 +194,13 @@ def test_DatasetWrapper__get_test_data(caesar_tacitus_corpus, fraction_for_test)
 
 
 @pytest.mark.parametrize("fraction_for_test", [0.25, 0.5, 0.75])
-def test_DatasetWrapper__fraction_for_test(caesar_tacitus_corpus, fraction_for_test):
-    dataset_wrapper = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+def test_DatasetWrapper__fraction_for_test(cicero_tacitus_corpus, fraction_for_test):
+    dataset_wrapper = DatasetWrapper(cicero_tacitus_corpus, fraction_for_test)
     assert len(dataset_wrapper.test_works) == fraction_for_test * len(
-        caesar_tacitus_corpus.works
+        cicero_tacitus_corpus.works
     )
     assert len(dataset_wrapper.train_works) == (1.0 - fraction_for_test) * len(
-        caesar_tacitus_corpus.works
+        cicero_tacitus_corpus.works
     )
 
     train_corpus = Corpus("train")
@@ -176,10 +212,10 @@ def test_DatasetWrapper__fraction_for_test(caesar_tacitus_corpus, fraction_for_t
 
 @pytest.mark.parametrize("fraction_for_test", [np.nan, -1, -1.5, 1.1, -0.01])
 def test_DatasetWrapper__invalid_fraction_for_test(
-    caesar_tacitus_corpus, fraction_for_test
+    cicero_tacitus_corpus, fraction_for_test
 ):
     with pytest.raises(ValueError):
-        _ = DatasetWrapper(caesar_tacitus_corpus, fraction_for_test)
+        _ = DatasetWrapper(cicero_tacitus_corpus, fraction_for_test)
 
 
 def test_model_to_vec_str(embedding_model):
